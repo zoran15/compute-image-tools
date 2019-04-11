@@ -18,10 +18,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/gce_ovf_import/ovf_model"
 	"github.com/GoogleCloudPlatform/compute-image-tools/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/govmomi/ovf"
 	"google.golang.org/api/compute/v1"
 )
 
@@ -69,7 +69,7 @@ func TestGetMachineTypeTooHighMemoryAndCPURequirements(t *testing.T) {
 }
 
 func TestGetMachineTypeNoVirtualSystemInOVFDescriptor(t *testing.T) {
-	mtp := MachineTypeProvider{OvfDescriptor: &ovf.Envelope{}}
+	mtp := MachineTypeProvider{OvfDescriptor: &ovfmodel.Descriptor{}}
 
 	result, err := mtp.GetMachineType()
 	assert.NotNil(t, err)
@@ -77,7 +77,7 @@ func TestGetMachineTypeNoVirtualSystemInOVFDescriptor(t *testing.T) {
 }
 
 func TestGetMachineTypeNoVirtualHardware(t *testing.T) {
-	mtp := MachineTypeProvider{OvfDescriptor: &ovf.Envelope{VirtualSystem: &ovf.VirtualSystem{}}}
+	mtp := MachineTypeProvider{OvfDescriptor: &ovfmodel.Descriptor{VirtualSystem: &ovfmodel.VirtualSystem{}}}
 
 	result, err := mtp.GetMachineType()
 	assert.NotNil(t, err)
@@ -85,15 +85,15 @@ func TestGetMachineTypeNoVirtualHardware(t *testing.T) {
 }
 
 func TestGetMachineTypeNoCPU(t *testing.T) {
-	virtualHardware := ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createMemoryItem(2048, "1"),
 		},
 	}
 	mtp := MachineTypeProvider{
-		OvfDescriptor: &ovf.Envelope{
-			VirtualSystem: &ovf.VirtualSystem{
-				VirtualHardware: []ovf.VirtualHardwareSection{virtualHardware}}}}
+		OvfDescriptor: &ovfmodel.Descriptor{
+			VirtualSystem: &ovfmodel.VirtualSystem{
+				VirtualHardware: []ovfmodel.VirtualHardwareSection{virtualHardware}}}}
 
 	result, err := mtp.GetMachineType()
 	assert.NotNil(t, err)
@@ -101,15 +101,15 @@ func TestGetMachineTypeNoCPU(t *testing.T) {
 }
 
 func TestGetMachineTypeNoMemory(t *testing.T) {
-	virtualHardware := ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createCPUItem(2, "1"),
 		},
 	}
 	mtp := MachineTypeProvider{
-		OvfDescriptor: &ovf.Envelope{
-			VirtualSystem: &ovf.VirtualSystem{
-				VirtualHardware: []ovf.VirtualHardwareSection{virtualHardware}}}}
+		OvfDescriptor: &ovfmodel.Descriptor{
+			VirtualSystem: &ovfmodel.VirtualSystem{
+				VirtualHardware: []ovfmodel.VirtualHardwareSection{virtualHardware}}}}
 
 	result, err := mtp.GetMachineType()
 	assert.NotNil(t, err)
@@ -123,17 +123,17 @@ func TestGetMachineTypeMultipleMemoryItemsPicksFirst(t *testing.T) {
 	project := "a_project"
 	zone := "us-east1-b"
 
-	virtualHardware := ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createCPUItem(2, "1"),
 			createMemoryItem(1024, "2"),
 			createMemoryItem(4096, "3"),
 			createMemoryItem(2048, "4"),
 		},
 	}
-	ovfDescriptor := &ovf.Envelope{
-		VirtualSystem: &ovf.VirtualSystem{
-			VirtualHardware: []ovf.VirtualHardwareSection{virtualHardware},
+	ovfDescriptor := &ovfmodel.Descriptor{
+		VirtualSystem: &ovfmodel.VirtualSystem{
+			VirtualHardware: []ovfmodel.VirtualHardwareSection{virtualHardware},
 		},
 	}
 	mockComputeClient := mocks.NewMockClient(mockCtrl)
@@ -154,17 +154,17 @@ func TestGetMachineTypeMultipleCPUItemsPicksFirst(t *testing.T) {
 	project := "a_project"
 	zone := "us-east1-b"
 
-	virtualHardware := ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createCPUItem(16, "1"),
 			createCPUItem(2, "2"),
 			createCPUItem(8, "3"),
 			createMemoryItem(16*1024, "4"),
 		},
 	}
-	ovfDescriptor := &ovf.Envelope{
-		VirtualSystem: &ovf.VirtualSystem{
-			VirtualHardware: []ovf.VirtualHardwareSection{virtualHardware},
+	ovfDescriptor := &ovfmodel.Descriptor{
+		VirtualSystem: &ovfmodel.VirtualSystem{
+			VirtualHardware: []ovfmodel.VirtualHardwareSection{virtualHardware},
 		},
 	}
 	mockComputeClient := mocks.NewMockClient(mockCtrl)
@@ -185,15 +185,15 @@ func TestGetMachineTypeErrorRetrievingMachineTypes(t *testing.T) {
 	project := "a_project"
 	zone := "us-east1-b"
 
-	virtualHardware := ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createCPUItem(2, "1"),
 			createMemoryItem(1024, "2"),
 		},
 	}
-	ovfDescriptor := &ovf.Envelope{
-		VirtualSystem: &ovf.VirtualSystem{
-			VirtualHardware: []ovf.VirtualHardwareSection{virtualHardware},
+	ovfDescriptor := &ovfmodel.Descriptor{
+		VirtualSystem: &ovfmodel.VirtualSystem{
+			VirtualHardware: []ovfmodel.VirtualHardwareSection{virtualHardware},
 		},
 	}
 	mockComputeClient := mocks.NewMockClient(mockCtrl)
@@ -255,46 +255,42 @@ func doTestGetMachineTypeNoMachineWithCPUMemoryExists(t *testing.T, cpuCount uin
 	assert.Equal(t, fmt.Sprintf("no machine type has at least %v MBs of memory and %v vCPUs", uint(memoryGB*1024), cpuCount), err.Error())
 }
 
-func createCPUAndMemoryOVFDescriptor(cpuCount uint, memoryMB uint) *ovf.Envelope {
-	virtualHardware := ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+func createCPUAndMemoryOVFDescriptor(cpuCount uint, memoryMB uint) *ovfmodel.Descriptor {
+	virtualHardware := ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createCPUItem(cpuCount, "1"),
 			createMemoryItem(memoryMB, "2"),
 		},
 	}
 
-	return &ovf.Envelope{
-		VirtualSystem: &ovf.VirtualSystem{
-			VirtualHardware: []ovf.VirtualHardwareSection{
+	return &ovfmodel.Descriptor{
+		VirtualSystem: &ovfmodel.VirtualSystem{
+			VirtualHardware: []ovfmodel.VirtualHardwareSection{
 				virtualHardware,
 			},
 		},
 	}
 }
 
-func createCPUItem(cpuCount uint, id string) ovf.ResourceAllocationSettingData {
+func createCPUItem(cpuCount uint, id string) ovfmodel.ResourceAllocationSettingData {
 	cpuResourceType := uint16(3)
 	mhz := "hertz * 10^6"
-	return ovf.ResourceAllocationSettingData{
-		CIMResourceAllocationSettingData: ovf.CIMResourceAllocationSettingData{
-			InstanceID:      id,
-			ResourceType:    &cpuResourceType,
-			VirtualQuantity: &cpuCount,
-			AllocationUnits: &mhz,
-		},
+	return ovfmodel.ResourceAllocationSettingData{
+		InstanceID:      id,
+		ResourceType:    &cpuResourceType,
+		VirtualQuantity: &cpuCount,
+		AllocationUnits: &mhz,
 	}
 }
 
-func createMemoryItem(memoryMB uint, id string) ovf.ResourceAllocationSettingData {
+func createMemoryItem(memoryMB uint, id string) ovfmodel.ResourceAllocationSettingData {
 	memoryResourceType := uint16(4)
 	mb := "byte * 2^20"
-	return ovf.ResourceAllocationSettingData{
-		CIMResourceAllocationSettingData: ovf.CIMResourceAllocationSettingData{
-			InstanceID:      id,
-			ResourceType:    &memoryResourceType,
-			VirtualQuantity: &memoryMB,
-			AllocationUnits: &mb,
-		},
+	return ovfmodel.ResourceAllocationSettingData{
+		InstanceID:      id,
+		ResourceType:    &memoryResourceType,
+		VirtualQuantity: &memoryMB,
+		AllocationUnits: &mb,
 	}
 }
 

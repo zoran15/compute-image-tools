@@ -19,10 +19,10 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
+	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/gce_ovf_import/ovf_model"
 	"github.com/GoogleCloudPlatform/compute-image-tools/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/govmomi/ovf"
 )
 
 var (
@@ -33,10 +33,10 @@ func TestValidateOvfPackage(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	references := []ovf.File{file(1), file(2), file(3)}
-	ovfDescriptorForValidation := envelope(references)
+	files := []ovfmodel.File{file(1), file(2), file(3)}
+	ovfDescriptorForValidation := descriptor(files)
 	mockStorageClient := mocks.NewMockStorageClientInterface(mockCtrl)
-	for _, reference := range references {
+	for _, reference := range files {
 		mockStorageClient.EXPECT().FindGcsFile(ovfPath, reference.Href).Return(&storage.ObjectHandle{}, nil).Times(1)
 	}
 
@@ -51,7 +51,7 @@ func TestValidateOvfPackageWhenReferencesNil(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	ovfDescriptorForValidation := envelope(nil)
+	ovfDescriptorForValidation := descriptor(nil)
 	mockStorageClient := mocks.NewMockStorageClientInterface(mockCtrl)
 
 	v := OvfValidator{mockStorageClient}
@@ -79,12 +79,12 @@ func TestValidateOvfPackageMissingMiddleReferenceInGcs(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	err := fmt.Errorf("no file found")
-	references := []ovf.File{file(1), file(2), file(3)}
-	ovfDescriptorForValidation := envelope(references)
+	files := []ovfmodel.File{file(1), file(2), file(3)}
+	ovfDescriptorForValidation := descriptor(files)
 	mockStorageClient := mocks.NewMockStorageClientInterface(mockCtrl)
 
-	mockStorageClient.EXPECT().FindGcsFile(ovfPath, references[0].Href).Return(&storage.ObjectHandle{}, nil).Times(1)
-	mockStorageClient.EXPECT().FindGcsFile(ovfPath, references[1].Href).Return(nil, err).Times(1)
+	mockStorageClient.EXPECT().FindGcsFile(ovfPath, files[0].Href).Return(&storage.ObjectHandle{}, nil).Times(1)
+	mockStorageClient.EXPECT().FindGcsFile(ovfPath, files[1].Href).Return(nil, err).Times(1)
 
 	v := OvfValidator{mockStorageClient}
 	result, resultError := v.ValidateOvfPackage(ovfDescriptorForValidation, ovfPathForValidation)
@@ -98,11 +98,11 @@ func TestValidateOvfPackageMissingFirstReferenceInGcs(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	err := fmt.Errorf("no file found")
-	references := []ovf.File{file(1), file(2), file(3)}
-	ovfDescriptorForValidation := envelope(references)
+	files := []ovfmodel.File{file(1), file(2), file(3)}
+	ovfDescriptorForValidation := descriptor(files)
 	mockStorageClient := mocks.NewMockStorageClientInterface(mockCtrl)
 
-	mockStorageClient.EXPECT().FindGcsFile(ovfPath, references[0].Href).Return(nil, err).Times(1)
+	mockStorageClient.EXPECT().FindGcsFile(ovfPath, files[0].Href).Return(nil, err).Times(1)
 
 	v := OvfValidator{mockStorageClient}
 	result, resultError := v.ValidateOvfPackage(ovfDescriptorForValidation, ovfPathForValidation)
@@ -111,14 +111,14 @@ func TestValidateOvfPackageMissingFirstReferenceInGcs(t *testing.T) {
 	assert.Nil(t, result)
 }
 
-func file(index int) ovf.File {
-	return ovf.File{
+func file(index int) ovfmodel.File {
+	return ovfmodel.File{
 		ID:   fmt.Sprintf("id%v", index),
 		Href: fmt.Sprintf("ref%v", index),
 		Size: 1,
 	}
 }
 
-func envelope(references []ovf.File) *ovf.Envelope {
-	return &ovf.Envelope{References: references}
+func descriptor(files []ovfmodel.File) *ovfmodel.Descriptor {
+	return &ovfmodel.Descriptor{References: &ovfmodel.ReferencesSection{Files: files}}
 }

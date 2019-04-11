@@ -16,10 +16,12 @@ package ovfutils
 
 import (
 	"bytes"
+	"encoding/xml"
+	"io"
 
 	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/common/domain"
 	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/gce_ovf_import/domain"
-	"github.com/vmware/govmomi/ovf"
+	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/gce_ovf_import/ovf_model"
 )
 
 // OvfDescriptorLoader is responsible for loading OVF descriptor from a GCS directory path.
@@ -37,7 +39,7 @@ func NewOvfDescriptorLoader(sc commondomain.StorageClientInterface) *OvfDescript
 
 // Load finds and loads OVF descriptor from a GCS directory path.
 // ovfGcsPath is a path to OVF directory, not a path to OVF descriptor file itself.
-func (l *OvfDescriptorLoader) Load(ovfGcsPath string) (*ovf.Envelope, error) {
+func (l *OvfDescriptorLoader) Load(ovfGcsPath string) (*ovfmodel.Descriptor, error) {
 	ovfDescriptorGcsReference, err := l.storageClient.FindGcsFile(ovfGcsPath, ".ovf")
 	if err != nil {
 		return nil, err
@@ -47,10 +49,21 @@ func (l *OvfDescriptorLoader) Load(ovfGcsPath string) (*ovf.Envelope, error) {
 		return nil, err
 	}
 	descriptorReader := bytes.NewReader(descriptorContent)
-	ovfDescriptor, err := ovf.Unmarshal(descriptorReader)
+	ovfDescriptor, err := l.loadDescriptor(descriptorReader)
 	if err != nil {
 		return nil, err
 	}
 
 	return l.validator.ValidateOvfPackage(ovfDescriptor, ovfGcsPath)
+}
+
+func (l *OvfDescriptorLoader) loadDescriptor(reader io.Reader) (*ovfmodel.Descriptor, error) {
+	var descriptor ovfmodel.Descriptor
+	decoder := xml.NewDecoder(reader)
+	err := decoder.Decode(&descriptor)
+	if err != nil {
+		return nil, err
+	}
+
+	return &descriptor, nil
 }

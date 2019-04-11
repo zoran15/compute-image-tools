@@ -37,10 +37,10 @@ import (
 	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/gce_ovf_import/daisy_utils"
 	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/gce_ovf_import/domain"
 	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/gce_ovf_import/gce_utils"
+	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/gce_ovf_import/ovf_model"
 	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/gce_ovf_import/ovf_utils"
 	"github.com/GoogleCloudPlatform/compute-image-tools/daisy"
 	daisycompute "github.com/GoogleCloudPlatform/compute-image-tools/daisy/compute"
-	"github.com/vmware/govmomi/ovf"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -400,7 +400,7 @@ func (oi *OVFImporter) modifyWorkflowPreValidate(w *daisy.Workflow) {
 }
 
 func (oi *OVFImporter) getMachineType(
-	ovfDescriptor *ovf.Envelope, project string, zone string) (string, error) {
+	ovfDescriptor *ovfmodel.Descriptor, project string, zone string) (string, error) {
 	machineTypeProvider := ovfgceutils.MachineTypeProvider{
 		OvfDescriptor: ovfDescriptor,
 		MachineType:   *machineType,

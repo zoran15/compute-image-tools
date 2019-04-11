@@ -18,10 +18,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/gce_ovf_import/ovf_model"
 	"github.com/GoogleCloudPlatform/compute-image-tools/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/govmomi/ovf"
 )
 
 var (
@@ -29,20 +29,24 @@ var (
 
 	fileRef1     = "file1"
 	fileRef2     = "file2"
-	defaultDisks = &ovf.DiskSection{Disks: []ovf.VirtualDiskDesc{
+	defaultDisks = &ovfmodel.DiskSection{Disks: []ovfmodel.VirtualDisk{
 		{Capacity: "20", CapacityAllocationUnits: &diskCapacityAllocationUnits, DiskID: "vmdisk1", FileRef: &fileRef1},
 		{Capacity: "1", CapacityAllocationUnits: &diskCapacityAllocationUnits, DiskID: "vmdisk2", FileRef: &fileRef2},
 	}}
 
-	defaultReferences = &[]ovf.File{
+	defaultFiles = &[]ovfmodel.File{
 		{Href: "Ubuntu_for_Horizon71_1_1.0-disk1.vmdk", ID: "file1", Size: 1151322112},
 		{Href: "Ubuntu_for_Horizon71_1_1.0-disk2.vmdk", ID: "file2", Size: 68096},
+	}
+
+	defaultReferences = &ovfmodel.ReferencesSection{
+		Files: *defaultFiles,
 	}
 )
 
 func TestGetDiskFileInfosDisksOnSingleControllerOutOfOrder(t *testing.T) {
-	virtualHardware := &ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := &ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createControllerItem("3", sataController),
 			createControllerItem("4", usbController),
 			createControllerItem("5", parallelSCSIController),
@@ -54,8 +58,8 @@ func TestGetDiskFileInfosDisksOnSingleControllerOutOfOrder(t *testing.T) {
 }
 
 func TestGetDiskFileInfosAllocationUnitExtraSpace(t *testing.T) {
-	virtualHardware := &ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := &ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createControllerItem("3", sataController),
 			createControllerItem("4", usbController),
 			createControllerItem("5", parallelSCSIController),
@@ -64,12 +68,12 @@ func TestGetDiskFileInfosAllocationUnitExtraSpace(t *testing.T) {
 		},
 	}
 	extraSpaceDiskCapacityAllocationUnits := "byte * 2^ 30   "
-	disks := &ovf.DiskSection{Disks: []ovf.VirtualDiskDesc{
+	disks := &ovfmodel.DiskSection{Disks: []ovfmodel.VirtualDisk{
 		{Capacity: "11", CapacityAllocationUnits: &extraSpaceDiskCapacityAllocationUnits, DiskID: "vmdisk1", FileRef: &fileRef1},
 		{Capacity: "12", CapacityAllocationUnits: &extraSpaceDiskCapacityAllocationUnits, DiskID: "vmdisk2", FileRef: &fileRef2},
 	}}
 
-	diskInfos, err := GetDiskInfos(virtualHardware, disks, defaultReferences)
+	diskInfos, err := GetDiskInfos(virtualHardware, disks, defaultFiles)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, diskInfos)
@@ -81,8 +85,8 @@ func TestGetDiskFileInfosAllocationUnitExtraSpace(t *testing.T) {
 }
 
 func TestGetDiskFileInfosDisksOnSeparateControllersOutOfOrder(t *testing.T) {
-	virtualHardware := &ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := &ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createControllerItem("3", sataController),
 			createControllerItem("4", usbController),
 			createControllerItem("5", parallelSCSIController),
@@ -95,8 +99,8 @@ func TestGetDiskFileInfosDisksOnSeparateControllersOutOfOrder(t *testing.T) {
 }
 
 func TestGetDiskFileInfosInvalidDiskReferenceFormat(t *testing.T) {
-	virtualHardware := &ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := &ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createControllerItem("3", sataController),
 			createControllerItem("4", usbController),
 			createControllerItem("5", parallelSCSIController),
@@ -105,13 +109,13 @@ func TestGetDiskFileInfosInvalidDiskReferenceFormat(t *testing.T) {
 		},
 	}
 
-	_, err := GetDiskInfos(virtualHardware, defaultDisks, defaultReferences)
+	_, err := GetDiskInfos(virtualHardware, defaultDisks, defaultFiles)
 	assert.NotNil(t, err)
 }
 
 func TestGetDiskFileInfosMissingDiskReference(t *testing.T) {
-	virtualHardware := &ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := &ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createControllerItem("3", sataController),
 			createControllerItem("4", usbController),
 			createControllerItem("5", parallelSCSIController),
@@ -120,13 +124,13 @@ func TestGetDiskFileInfosMissingDiskReference(t *testing.T) {
 		},
 	}
 
-	_, err := GetDiskInfos(virtualHardware, defaultDisks, defaultReferences)
+	_, err := GetDiskInfos(virtualHardware, defaultDisks, defaultFiles)
 	assert.NotNil(t, err)
 }
 
 func TestGetDiskFileInfosMissingFileReference(t *testing.T) {
-	virtualHardware := &ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := &ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createControllerItem("3", sataController),
 			createControllerItem("4", usbController),
 			createControllerItem("5", parallelSCSIController),
@@ -135,15 +139,15 @@ func TestGetDiskFileInfosMissingFileReference(t *testing.T) {
 		},
 	}
 
-	_, err := GetDiskInfos(virtualHardware, defaultDisks, &[]ovf.File{
+	_, err := GetDiskInfos(virtualHardware, defaultDisks, &[]ovfmodel.File{
 		{Href: "Ubuntu_for_Horizon71_1_1.0-disk1.vmdk", ID: "file1", Size: 1151322112},
 	})
 	assert.NotNil(t, err)
 }
 
 func TestGetDiskFileInfosDiskWithoutParentController(t *testing.T) {
-	virtualHardware := &ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := &ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createControllerItem("3", sataController),
 			createControllerItem("4", usbController),
 			createControllerItem("5", parallelSCSIController),
@@ -157,45 +161,45 @@ func TestGetDiskFileInfosDiskWithoutParentController(t *testing.T) {
 }
 
 func TestGetDiskFileInfosNoControllers(t *testing.T) {
-	virtualHardware := &ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := &ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createDiskItem("7", "0", "disk1", "ovf:/disk/vmdisk2", "5"),
 			createDiskItem("6", "0", "disk0", "ovf:/disk/vmdisk1", "3"),
 			createDiskItem("8", "0", "disk2", "ovf:/disk/vmdisk3", "123"),
 		},
 	}
-	_, err := GetDiskInfos(virtualHardware, defaultDisks, defaultReferences)
+	_, err := GetDiskInfos(virtualHardware, defaultDisks, defaultFiles)
 	assert.NotNil(t, err)
 }
 
 func TestGetDiskFileInfosNilFileReferences(t *testing.T) {
-	_, err := GetDiskInfos(&ovf.VirtualHardwareSection{}, defaultDisks, nil)
+	_, err := GetDiskInfos(&ovfmodel.VirtualHardwareSection{}, defaultDisks, nil)
 	assert.NotNil(t, err)
 }
 
 func TestGetDiskFileInfosNilDiskSection(t *testing.T) {
-	_, err := GetDiskInfos(&ovf.VirtualHardwareSection{}, nil, defaultReferences)
+	_, err := GetDiskInfos(&ovfmodel.VirtualHardwareSection{}, nil, defaultFiles)
 	assert.NotNil(t, err)
 }
 
 func TestGetDiskFileInfosNilDisks(t *testing.T) {
-	_, err := GetDiskInfos(&ovf.VirtualHardwareSection{}, &ovf.DiskSection{}, defaultReferences)
+	_, err := GetDiskInfos(&ovfmodel.VirtualHardwareSection{}, &ovfmodel.DiskSection{}, defaultFiles)
 	assert.NotNil(t, err)
 }
 
 func TestGetDiskFileInfosEmptyDisks(t *testing.T) {
-	_, err := GetDiskInfos(&ovf.VirtualHardwareSection{},
-		&ovf.DiskSection{Disks: []ovf.VirtualDiskDesc{}}, defaultReferences)
+	_, err := GetDiskInfos(&ovfmodel.VirtualHardwareSection{},
+		&ovfmodel.DiskSection{Disks: []ovfmodel.VirtualDisk{}}, defaultFiles)
 	assert.NotNil(t, err)
 }
 
 func TestGetDiskFileInfosNilVirtualHardware(t *testing.T) {
-	_, err := GetDiskInfos(nil, defaultDisks, defaultReferences)
+	_, err := GetDiskInfos(nil, defaultDisks, defaultFiles)
 	assert.NotNil(t, err)
 }
 
-func doTestGetDiskFileInfosSuccess(t *testing.T, virtualHardware *ovf.VirtualHardwareSection) {
-	diskInfos, err := GetDiskInfos(virtualHardware, defaultDisks, defaultReferences)
+func doTestGetDiskFileInfosSuccess(t *testing.T, virtualHardware *ovfmodel.VirtualHardwareSection) {
+	diskInfos, err := GetDiskInfos(virtualHardware, defaultDisks, defaultFiles)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, diskInfos)
@@ -207,8 +211,8 @@ func doTestGetDiskFileInfosSuccess(t *testing.T, virtualHardware *ovf.VirtualHar
 }
 
 func TestGetVirtualHardwareSection(t *testing.T) {
-	expected := ovf.VirtualHardwareSection{}
-	virtualSystem := &ovf.VirtualSystem{VirtualHardware: []ovf.VirtualHardwareSection{expected}}
+	expected := ovfmodel.VirtualHardwareSection{}
+	virtualSystem := &ovfmodel.VirtualSystem{VirtualHardware: []ovfmodel.VirtualHardwareSection{expected}}
 
 	virtualHardware, err := GetVirtualHardwareSection(virtualSystem)
 	assert.Equal(t, &expected, virtualHardware)
@@ -221,20 +225,20 @@ func TestGetVirtualHardwareSectionWhenVirtualSystemNil(t *testing.T) {
 }
 
 func TestGetVirtualHardwareSectionWhenVirtualHardwareNil(t *testing.T) {
-	virtualSystem := &ovf.VirtualSystem{VirtualHardware: nil}
+	virtualSystem := &ovfmodel.VirtualSystem{VirtualHardware: nil}
 	_, err := GetVirtualHardwareSection(virtualSystem)
 	assert.NotNil(t, err)
 }
 
 func TestGetVirtualHardwareSectionWhenVirtualHardwareEmpty(t *testing.T) {
-	virtualSystem := &ovf.VirtualSystem{VirtualHardware: []ovf.VirtualHardwareSection{}}
+	virtualSystem := &ovfmodel.VirtualSystem{VirtualHardware: []ovfmodel.VirtualHardwareSection{}}
 	_, err := GetVirtualHardwareSection(virtualSystem)
 	assert.NotNil(t, err)
 }
 
 func TestGetVirtualSystem(t *testing.T) {
-	expected := &ovf.VirtualSystem{}
-	ovfDescriptor := &ovf.Envelope{VirtualSystem: expected}
+	expected := &ovfmodel.VirtualSystem{}
+	ovfDescriptor := &ovfmodel.Descriptor{VirtualSystem: expected}
 	virtualSystem, err := GetVirtualSystem(ovfDescriptor)
 
 	assert.Equal(t, expected, virtualSystem)
@@ -247,15 +251,15 @@ func TestGetVirtualSystemNilOvfDescriptor(t *testing.T) {
 }
 
 func TestGetVirtualSystemNilVirtualSystem(t *testing.T) {
-	ovfDescriptor := &ovf.Envelope{}
+	ovfDescriptor := &ovfmodel.Descriptor{}
 	_, err := GetVirtualSystem(ovfDescriptor)
 	assert.NotNil(t, err)
 }
 
 func TestGetVirtualHardwareSectionFromDescriptor(t *testing.T) {
-	expected := ovf.VirtualHardwareSection{}
-	virtualSystem := &ovf.VirtualSystem{VirtualHardware: []ovf.VirtualHardwareSection{expected}}
-	ovfDescriptor := &ovf.Envelope{VirtualSystem: virtualSystem}
+	expected := ovfmodel.VirtualHardwareSection{}
+	virtualSystem := &ovfmodel.VirtualSystem{VirtualHardware: []ovfmodel.VirtualHardwareSection{expected}}
+	ovfDescriptor := &ovfmodel.Descriptor{VirtualSystem: virtualSystem}
 
 	virtualHardware, err := GetVirtualHardwareSectionFromDescriptor(ovfDescriptor)
 	assert.Equal(t, &expected, virtualHardware)
@@ -263,15 +267,15 @@ func TestGetVirtualHardwareSectionFromDescriptor(t *testing.T) {
 }
 
 func TestGetVirtualHardwareSectionFromDescriptorWhenNilVirtualHardware(t *testing.T) {
-	virtualSystem := &ovf.VirtualSystem{VirtualHardware: nil}
-	ovfDescriptor := &ovf.Envelope{VirtualSystem: virtualSystem}
+	virtualSystem := &ovfmodel.VirtualSystem{VirtualHardware: nil}
+	ovfDescriptor := &ovfmodel.Descriptor{VirtualSystem: virtualSystem}
 
 	_, err := GetVirtualHardwareSectionFromDescriptor(ovfDescriptor)
 	assert.NotNil(t, err)
 }
 
 func TestGetVirtualHardwareSectionFromDescriptorWhenNilVirtualSystem(t *testing.T) {
-	ovfDescriptor := &ovf.Envelope{VirtualSystem: nil}
+	ovfDescriptor := &ovfmodel.Descriptor{VirtualSystem: nil}
 
 	_, err := GetVirtualHardwareSectionFromDescriptor(ovfDescriptor)
 	assert.NotNil(t, err)
@@ -296,8 +300,8 @@ func TestGetCapacityInGB(t *testing.T) {
 }
 
 func TestGetNumberOfCPUs(t *testing.T) {
-	virtualHardware := &ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := &ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createCPUItem("1", 3),
 		},
 	}
@@ -308,8 +312,8 @@ func TestGetNumberOfCPUs(t *testing.T) {
 }
 
 func TestGetNumberOfCPUsPicksFirst(t *testing.T) {
-	virtualHardware := &ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := &ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createCPUItem("1", 11),
 			createCPUItem("2", 2),
 			createCPUItem("3", 4),
@@ -327,8 +331,8 @@ func TestGetNumberOfCPUsErrorWhenVirtualHardwareNil(t *testing.T) {
 }
 
 func TestGetNumberOfCPUsErrorWhenNoCPUs(t *testing.T) {
-	virtualHardware := &ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := &ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createControllerItem("4", usbController),
 			createControllerItem("5", parallelSCSIController),
 			createDiskItem("7", "0", "disk1", "ovf:/disk/vmdisk2", "5"),
@@ -340,8 +344,8 @@ func TestGetNumberOfCPUsErrorWhenNoCPUs(t *testing.T) {
 }
 
 func TestGetMemoryInMB(t *testing.T) {
-	virtualHardware := &ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := &ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createMemoryItem("1", 16),
 		},
 	}
@@ -352,8 +356,8 @@ func TestGetMemoryInMB(t *testing.T) {
 }
 
 func TestGetMemoryInMBReturnsFirstMemorySpec(t *testing.T) {
-	virtualHardware := &ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := &ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createMemoryItem("1", 33),
 			createMemoryItem("1", 16),
 			createMemoryItem("1", 1),
@@ -401,8 +405,8 @@ func TestGetMemoryInMBEmptyAllocationUnit(t *testing.T) {
 func TestGetMemoryInMBNilAllocationUnit(t *testing.T) {
 	memoryItem := createMemoryItem("1", 33)
 	memoryItem.AllocationUnits = nil
-	virtualHardware := &ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := &ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			memoryItem,
 		},
 	}
@@ -416,8 +420,8 @@ func TestGetMemoryInMBReturnsErrorWhenVirtualHardwareNil(t *testing.T) {
 }
 
 func TestGetMemoryInMBErrorWhenNoMemory(t *testing.T) {
-	virtualHardware := &ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := &ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createControllerItem("4", usbController),
 			createControllerItem("5", parallelSCSIController),
 			createDiskItem("7", "0", "disk1",
@@ -435,8 +439,8 @@ func TestGetOVFDescriptorAndDiskPaths(t *testing.T) {
 
 	ovfPackagePath := "gs://abucket/apath/"
 
-	virtualHardware := ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createControllerItem("3", sataController),
 			createControllerItem("5", parallelSCSIController),
 			createDiskItem("7", "1", "disk1",
@@ -445,11 +449,11 @@ func TestGetOVFDescriptorAndDiskPaths(t *testing.T) {
 				"ovf:/disk/vmdisk1", "5"),
 		},
 	}
-	ovfDescriptor := &ovf.Envelope{
+	ovfDescriptor := &ovfmodel.Descriptor{
 		Disk:       defaultDisks,
-		References: *defaultReferences,
-		VirtualSystem: &ovf.VirtualSystem{
-			VirtualHardware: []ovf.VirtualHardwareSection{virtualHardware},
+		References: defaultReferences,
+		VirtualSystem: &ovfmodel.VirtualSystem{
+			VirtualHardware: []ovfmodel.VirtualHardwareSection{virtualHardware},
 		},
 	}
 
@@ -490,8 +494,8 @@ func TestGetOVFDescriptorAndDiskPathsErrorWhenNoVirtualSystem(t *testing.T) {
 
 	mockOvfDescriptorLoader := mocks.NewMockOvfDescriptorLoaderInterface(mockCtrl)
 	mockOvfDescriptorLoader.EXPECT().Load("gs://abucket/apath/").Return(
-		&ovf.Envelope{
-			References: *defaultReferences,
+		&ovfmodel.Descriptor{
+			References: defaultReferences,
 			Disk:       defaultDisks,
 		}, nil)
 
@@ -508,9 +512,9 @@ func TestGetOVFDescriptorAndDiskPathsErrorWhenNoVirtualHardware(t *testing.T) {
 
 	mockOvfDescriptorLoader := mocks.NewMockOvfDescriptorLoaderInterface(mockCtrl)
 	mockOvfDescriptorLoader.EXPECT().Load("gs://abucket/apath/").Return(
-		&ovf.Envelope{
-			VirtualSystem: &ovf.VirtualSystem{},
-			References:    *defaultReferences,
+		&ovfmodel.Descriptor{
+			VirtualSystem: &ovfmodel.VirtualSystem{},
+			References:    defaultReferences,
 			Disk:          defaultDisks,
 		}, nil)
 
@@ -527,13 +531,13 @@ func TestGetOVFDescriptorAndDiskPathsErrorWhenNoDisks(t *testing.T) {
 
 	mockOvfDescriptorLoader := mocks.NewMockOvfDescriptorLoaderInterface(mockCtrl)
 	mockOvfDescriptorLoader.EXPECT().Load("gs://abucket/apath/").Return(
-		&ovf.Envelope{
-			VirtualSystem: &ovf.VirtualSystem{VirtualHardware: []ovf.VirtualHardwareSection{
-				{Item: []ovf.ResourceAllocationSettingData{
+		&ovfmodel.Descriptor{
+			VirtualSystem: &ovfmodel.VirtualSystem{VirtualHardware: []ovfmodel.VirtualHardwareSection{
+				{Item: []ovfmodel.ResourceAllocationSettingData{
 					createControllerItem("3", sataController)},
 				},
 			}},
-			References: *defaultReferences,
+			References: defaultReferences,
 		}, nil)
 
 	ovfDescriptorResult, diskPaths, err := GetOVFDescriptorAndDiskPaths(
@@ -549,9 +553,9 @@ func TestGetOVFDescriptorAndDiskPathsErrorWhenNoReferences(t *testing.T) {
 
 	mockOvfDescriptorLoader := mocks.NewMockOvfDescriptorLoaderInterface(mockCtrl)
 	mockOvfDescriptorLoader.EXPECT().Load("gs://abucket/apath/").Return(
-		&ovf.Envelope{
-			VirtualSystem: &ovf.VirtualSystem{VirtualHardware: []ovf.VirtualHardwareSection{
-				{Item: []ovf.ResourceAllocationSettingData{createControllerItem("3", sataController)}},
+		&ovfmodel.Descriptor{
+			VirtualSystem: &ovfmodel.VirtualSystem{VirtualHardware: []ovfmodel.VirtualHardwareSection{
+				{Item: []ovfmodel.ResourceAllocationSettingData{createControllerItem("3", sataController)}},
 			}},
 			Disk: defaultDisks,
 		}, nil)
@@ -563,11 +567,11 @@ func TestGetOVFDescriptorAndDiskPathsErrorWhenNoReferences(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
-func createVirtualHardwareSectionWithMemoryItem(quantity uint, allocationUnit string) *ovf.VirtualHardwareSection {
+func createVirtualHardwareSectionWithMemoryItem(quantity uint, allocationUnit string) *ovfmodel.VirtualHardwareSection {
 	memoryItem := createMemoryItem("1", quantity)
 	memoryItem.AllocationUnits = &allocationUnit
-	virtualHardware := &ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+	virtualHardware := &ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			memoryItem,
 		},
 	}
@@ -580,53 +584,45 @@ func doTestGetCapacityInGB(t *testing.T, expected int, capacity string, allocati
 	assert.Equal(t, expected, capacityInGB)
 }
 
-func createControllerItem(instanceID string, resourceType uint16) ovf.ResourceAllocationSettingData {
-	return ovf.ResourceAllocationSettingData{
-		CIMResourceAllocationSettingData: ovf.CIMResourceAllocationSettingData{
-			InstanceID:   instanceID,
-			ResourceType: &resourceType,
-		},
+func createControllerItem(instanceID string, resourceType uint16) ovfmodel.ResourceAllocationSettingData {
+	return ovfmodel.ResourceAllocationSettingData{
+		InstanceID:   instanceID,
+		ResourceType: &resourceType,
 	}
 }
 
 func createDiskItem(instanceID string, addressOnParent string,
-	elementName string, hostResource string, parent string) ovf.ResourceAllocationSettingData {
+	elementName string, hostResource string, parent string) ovfmodel.ResourceAllocationSettingData {
 	diskType := disk
-	return ovf.ResourceAllocationSettingData{
-		CIMResourceAllocationSettingData: ovf.CIMResourceAllocationSettingData{
-			InstanceID:      instanceID,
-			ResourceType:    &diskType,
-			AddressOnParent: &addressOnParent,
-			ElementName:     elementName,
-			HostResource:    []string{hostResource},
-			Parent:          &parent,
-		},
+	return ovfmodel.ResourceAllocationSettingData{
+		InstanceID:      instanceID,
+		ResourceType:    &diskType,
+		AddressOnParent: &addressOnParent,
+		ElementName:     elementName,
+		HostResource:    []string{hostResource},
+		Parent:          &parent,
 	}
 }
 
-func createCPUItem(instanceID string, quantity uint) ovf.ResourceAllocationSettingData {
+func createCPUItem(instanceID string, quantity uint) ovfmodel.ResourceAllocationSettingData {
 	resourceType := cpu
 	mhz := "hertz * 10^6"
-	return ovf.ResourceAllocationSettingData{
-		CIMResourceAllocationSettingData: ovf.CIMResourceAllocationSettingData{
-			InstanceID:      instanceID,
-			ResourceType:    &resourceType,
-			VirtualQuantity: &quantity,
-			AllocationUnits: &mhz,
-		},
+	return ovfmodel.ResourceAllocationSettingData{
+		InstanceID:      instanceID,
+		ResourceType:    &resourceType,
+		VirtualQuantity: &quantity,
+		AllocationUnits: &mhz,
 	}
 }
 
-func createMemoryItem(instanceID string, quantity uint) ovf.ResourceAllocationSettingData {
+func createMemoryItem(instanceID string, quantity uint) ovfmodel.ResourceAllocationSettingData {
 	resourceType := memory
 	mb := "byte * 2^20"
 
-	return ovf.ResourceAllocationSettingData{
-		CIMResourceAllocationSettingData: ovf.CIMResourceAllocationSettingData{
-			InstanceID:      instanceID,
-			ResourceType:    &resourceType,
-			VirtualQuantity: &quantity,
-			AllocationUnits: &mb,
-		},
+	return ovfmodel.ResourceAllocationSettingData{
+		InstanceID:      instanceID,
+		ResourceType:    &resourceType,
+		VirtualQuantity: &quantity,
+		AllocationUnits: &mb,
 	}
 }

@@ -24,10 +24,10 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/common/utils/logging"
 	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/common/utils/test"
+	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/gce_ovf_import/ovf_model"
 	"github.com/GoogleCloudPlatform/compute-image-tools/mocks"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"github.com/vmware/govmomi/ovf"
 	"google.golang.org/api/compute/v1"
 	"google.golang.org/api/iterator"
 )
@@ -599,33 +599,29 @@ func buildOsArgsAndAssertErrorOnValidate(cliArgs map[string]interface{}, t *test
 	assert.NotNil(t, validateAndParseFlags())
 }
 
-func createControllerItem(instanceID string, resourceType uint16) ovf.ResourceAllocationSettingData {
-	return ovf.ResourceAllocationSettingData{
-		CIMResourceAllocationSettingData: ovf.CIMResourceAllocationSettingData{
-			InstanceID:   instanceID,
-			ResourceType: &resourceType,
-		},
+func createControllerItem(instanceID string, resourceType uint16) ovfmodel.ResourceAllocationSettingData {
+	return ovfmodel.ResourceAllocationSettingData{
+		InstanceID:   instanceID,
+		ResourceType: &resourceType,
 	}
 }
 
 func createDiskItem(instanceID string, addressOnParent string,
-	elementName string, hostResource string, parent string) ovf.ResourceAllocationSettingData {
+	elementName string, hostResource string, parent string) ovfmodel.ResourceAllocationSettingData {
 	diskType := uint16(17)
-	return ovf.ResourceAllocationSettingData{
-		CIMResourceAllocationSettingData: ovf.CIMResourceAllocationSettingData{
-			InstanceID:      instanceID,
-			ResourceType:    &diskType,
-			AddressOnParent: &addressOnParent,
-			ElementName:     elementName,
-			HostResource:    []string{hostResource},
-			Parent:          &parent,
-		},
+	return ovfmodel.ResourceAllocationSettingData{
+		InstanceID:      instanceID,
+		ResourceType:    &diskType,
+		AddressOnParent: &addressOnParent,
+		ElementName:     elementName,
+		HostResource:    []string{hostResource},
+		Parent:          &parent,
 	}
 }
 
-func createOVFDescriptor() *ovf.Envelope {
-	virtualHardware := ovf.VirtualHardwareSection{
-		Item: []ovf.ResourceAllocationSettingData{
+func createOVFDescriptor() *ovfmodel.Descriptor {
+	virtualHardware := ovfmodel.VirtualHardwareSection{
+		Item: []ovfmodel.ResourceAllocationSettingData{
 			createControllerItem("5", 6),
 			createDiskItem("7", "1", "disk1",
 				"ovf:/disk/vmdisk2", "5"),
@@ -641,48 +637,46 @@ func createOVFDescriptor() *ovf.Envelope {
 	fileRef1 := "file1"
 	fileRef2 := "file2"
 	fileRef3 := "file3"
-	ovfDescriptor := &ovf.Envelope{
-		Disk: &ovf.DiskSection{Disks: []ovf.VirtualDiskDesc{
+	ovfDescriptor := &ovfmodel.Descriptor{
+		Disk: &ovfmodel.DiskSection{Disks: []ovfmodel.VirtualDisk{
 			{Capacity: "20", CapacityAllocationUnits: &diskCapacityAllocationUnits, DiskID: "vmdisk1", FileRef: &fileRef1},
 			{Capacity: "1", CapacityAllocationUnits: &diskCapacityAllocationUnits, DiskID: "vmdisk2", FileRef: &fileRef2},
 			{Capacity: "5", CapacityAllocationUnits: &diskCapacityAllocationUnits, DiskID: "vmdisk3", FileRef: &fileRef3},
 		}},
-		References: []ovf.File{
-			{Href: "Ubuntu_for_Horizon71_1_1.0-disk1.vmdk", ID: "file1", Size: 1151322112},
-			{Href: "Ubuntu_for_Horizon71_1_1.0-disk2.vmdk", ID: "file2", Size: 68096},
-			{Href: "Ubuntu_for_Horizon71_1_1.0-disk3.vmdk", ID: "file3", Size: 68096},
+		References: &ovfmodel.ReferencesSection{
+			Files: []ovfmodel.File{
+				{Href: "Ubuntu_for_Horizon71_1_1.0-disk1.vmdk", ID: "file1", Size: 1151322112},
+				{Href: "Ubuntu_for_Horizon71_1_1.0-disk2.vmdk", ID: "file2", Size: 68096},
+				{Href: "Ubuntu_for_Horizon71_1_1.0-disk3.vmdk", ID: "file3", Size: 68096},
+			},
 		},
-		VirtualSystem: &ovf.VirtualSystem{
-			VirtualHardware: []ovf.VirtualHardwareSection{virtualHardware},
+		VirtualSystem: &ovfmodel.VirtualSystem{
+			VirtualHardware: []ovfmodel.VirtualHardwareSection{virtualHardware},
 		},
 	}
 	return ovfDescriptor
 }
 
-func createCPUItem(instanceID string, quantity uint) ovf.ResourceAllocationSettingData {
+func createCPUItem(instanceID string, quantity uint) ovfmodel.ResourceAllocationSettingData {
 	resourceType := uint16(3)
 	mhz := "hertz * 10^6"
-	return ovf.ResourceAllocationSettingData{
-		CIMResourceAllocationSettingData: ovf.CIMResourceAllocationSettingData{
-			InstanceID:      instanceID,
-			ResourceType:    &resourceType,
-			VirtualQuantity: &quantity,
-			AllocationUnits: &mhz,
-		},
+	return ovfmodel.ResourceAllocationSettingData{
+		InstanceID:      instanceID,
+		ResourceType:    &resourceType,
+		VirtualQuantity: &quantity,
+		AllocationUnits: &mhz,
 	}
 }
 
-func createMemoryItem(instanceID string, quantityMB uint) ovf.ResourceAllocationSettingData {
+func createMemoryItem(instanceID string, quantityMB uint) ovfmodel.ResourceAllocationSettingData {
 	resourceType := uint16(4)
 	mb := "byte * 2^20"
 
-	return ovf.ResourceAllocationSettingData{
-		CIMResourceAllocationSettingData: ovf.CIMResourceAllocationSettingData{
-			InstanceID:      instanceID,
-			ResourceType:    &resourceType,
-			VirtualQuantity: &quantityMB,
-			AllocationUnits: &mb,
-		},
+	return ovfmodel.ResourceAllocationSettingData{
+		InstanceID:      instanceID,
+		ResourceType:    &resourceType,
+		VirtualQuantity: &quantityMB,
+		AllocationUnits: &mb,
 	}
 }
 

@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/gce_ovf_import/domain"
-	"github.com/vmware/govmomi/ovf"
+	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/gce_ovf_import/ovf_model"
 )
 
 const (
@@ -43,8 +43,8 @@ type DiskInfo struct {
 }
 
 // GetDiskInfos returns disk info about disks in a virtual appliance. The first file is boot disk.
-func GetDiskInfos(virtualHardware *ovf.VirtualHardwareSection, diskSection *ovf.DiskSection,
-	references *[]ovf.File) ([]DiskInfo, error) {
+func GetDiskInfos(virtualHardware *ovfmodel.VirtualHardwareSection, diskSection *ovfmodel.DiskSection,
+	references *[]ovfmodel.File) ([]DiskInfo, error) {
 	if virtualHardware == nil {
 		return nil, fmt.Errorf("virtualHardware cannot be nil")
 	}
@@ -64,7 +64,7 @@ func GetDiskInfos(virtualHardware *ovf.VirtualHardwareSection, diskSection *ovf.
 	diskInfos := make([]DiskInfo, 0)
 
 	for _, diskController := range diskControllers {
-		controllerDisks := make([]ovf.ResourceAllocationSettingData, 0)
+		controllerDisks := make([]ovfmodel.ResourceAllocationSettingData, 0)
 
 		for _, diskItem := range allDiskItems {
 			if *diskItem.Parent == diskController.InstanceID {
@@ -72,7 +72,7 @@ func GetDiskInfos(virtualHardware *ovf.VirtualHardwareSection, diskSection *ovf.
 			}
 		}
 
-		sortItemsByStringValue(controllerDisks, func(disk ovf.ResourceAllocationSettingData) string {
+		sortItemsByStringValue(controllerDisks, func(disk ovfmodel.ResourceAllocationSettingData) string {
 			return *disk.AddressOnParent
 		})
 
@@ -96,7 +96,7 @@ func GetDiskInfos(virtualHardware *ovf.VirtualHardwareSection, diskSection *ovf.
 
 // GetNumberOfCPUs returns number of CPUs in from virtualHardware section. If multiple CPUs are
 // defined, the first one will be returned.
-func GetNumberOfCPUs(virtualHardware *ovf.VirtualHardwareSection) (int64, error) {
+func GetNumberOfCPUs(virtualHardware *ovfmodel.VirtualHardwareSection) (int64, error) {
 	if virtualHardware == nil {
 		return 0, fmt.Errorf("virtualHardware cannot be nil")
 	}
@@ -112,7 +112,7 @@ func GetNumberOfCPUs(virtualHardware *ovf.VirtualHardwareSection) (int64, error)
 
 // GetMemoryInMB returns memory size in MB from OVF virtualHardware section. If there are multiple
 // elements defining memory for the same virtual system, the first memory element will be used.
-func GetMemoryInMB(virtualHardware *ovf.VirtualHardwareSection) (int64, error) {
+func GetMemoryInMB(virtualHardware *ovfmodel.VirtualHardwareSection) (int64, error) {
 	if virtualHardware == nil {
 		return 0, fmt.Errorf("virtualHardware cannot be nil")
 	}
@@ -139,7 +139,7 @@ func GetMemoryInMB(virtualHardware *ovf.VirtualHardwareSection) (int64, error) {
 }
 
 // GetVirtualHardwareSection returns VirtualHardwareSection from OVF VirtualSystem
-func GetVirtualHardwareSection(virtualSystem *ovf.VirtualSystem) (*ovf.VirtualHardwareSection, error) {
+func GetVirtualHardwareSection(virtualSystem *ovfmodel.VirtualSystem) (*ovfmodel.VirtualHardwareSection, error) {
 	//TODO: support for multiple VirtualHardwareSection for different environments
 	//More on page 50, https://www.dmtf.org/sites/default/files/standards/documents/DSP2017_2.0.0.pdf
 	if virtualSystem == nil {
@@ -151,8 +151,8 @@ func GetVirtualHardwareSection(virtualSystem *ovf.VirtualSystem) (*ovf.VirtualHa
 	return &virtualSystem.VirtualHardware[0], nil
 }
 
-// GetVirtualSystem returns VirtualSystem element from OVF descriptor envelope
-func GetVirtualSystem(ovfDescriptor *ovf.Envelope) (*ovf.VirtualSystem, error) {
+// GetVirtualSystem returns VirtualSystem element from OVF descriptor descriptor
+func GetVirtualSystem(ovfDescriptor *ovfmodel.Descriptor) (*ovfmodel.VirtualSystem, error) {
 	if ovfDescriptor == nil {
 		return nil, fmt.Errorf("OVF descriptor is nil, can't extract virtual system")
 	}
@@ -164,7 +164,7 @@ func GetVirtualSystem(ovfDescriptor *ovf.Envelope) (*ovf.VirtualSystem, error) {
 }
 
 // GetVirtualHardwareSectionFromDescriptor returns VirtualHardwareSection from OVF descriptor
-func GetVirtualHardwareSectionFromDescriptor(ovfDescriptor *ovf.Envelope) (*ovf.VirtualHardwareSection, error) {
+func GetVirtualHardwareSectionFromDescriptor(ovfDescriptor *ovfmodel.Descriptor) (*ovfmodel.VirtualHardwareSection, error) {
 	virtualSystem, err := GetVirtualSystem(ovfDescriptor)
 	if err != nil {
 		return nil, err
@@ -179,7 +179,7 @@ func GetVirtualHardwareSectionFromDescriptor(ovfDescriptor *ovf.Envelope) (*ovf.
 // GetOVFDescriptorAndDiskPaths loads OVF descriptor from GCS folder location. It returns
 // descriptor object and full paths to disk files, including ovfGcsPath.
 func GetOVFDescriptorAndDiskPaths(ovfDescriptorLoader domain.OvfDescriptorLoaderInterface,
-	ovfGcsPath string) (*ovf.Envelope, []DiskInfo, error) {
+	ovfGcsPath string) (*ovfmodel.Descriptor, []DiskInfo, error) {
 	ovfDescriptor, err := ovfDescriptorLoader.Load(ovfGcsPath)
 	if err != nil {
 		return nil, nil, err
@@ -189,7 +189,10 @@ func GetOVFDescriptorAndDiskPaths(ovfDescriptorLoader domain.OvfDescriptorLoader
 	if err != nil {
 		return nil, nil, err
 	}
-	diskInfos, err := GetDiskInfos(virtualHardware, ovfDescriptor.Disk, &ovfDescriptor.References)
+	if ovfDescriptor.References == nil {
+		return nil, nil, fmt.Errorf("OVF references are empty, can't extract disk paths")
+	}
+	diskInfos, err := GetDiskInfos(virtualHardware, ovfDescriptor.Disk, &ovfDescriptor.References.Files)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -226,17 +229,17 @@ func getAllocationUnitPowerOfTwo(allocationUnits string) (int, error) {
 	return strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(allocationUnits, "byte * 2^")))
 }
 
-func getDiskControllersPrioritized(virtualHardware *ovf.VirtualHardwareSection) []ovf.ResourceAllocationSettingData {
+func getDiskControllersPrioritized(virtualHardware *ovfmodel.VirtualHardwareSection) []ovfmodel.ResourceAllocationSettingData {
 	controllerItems := filterItemsByResourceTypes(virtualHardware,
 		ideController, parallelSCSIController, iSCSIController, sataController, usbController)
-	sortItemsByStringValue(controllerItems, func(item ovf.ResourceAllocationSettingData) string {
+	sortItemsByStringValue(controllerItems, func(item ovfmodel.ResourceAllocationSettingData) string {
 		return item.InstanceID
 	})
 	return controllerItems
 }
 
-func filterItemsByResourceTypes(virtualHardware *ovf.VirtualHardwareSection, resourceTypes ...uint16) []ovf.ResourceAllocationSettingData {
-	filtered := make([]ovf.ResourceAllocationSettingData, 0)
+func filterItemsByResourceTypes(virtualHardware *ovfmodel.VirtualHardwareSection, resourceTypes ...uint16) []ovfmodel.ResourceAllocationSettingData {
+	filtered := make([]ovfmodel.ResourceAllocationSettingData, 0)
 	for _, item := range virtualHardware.Item {
 		for _, resourceType := range resourceTypes {
 			if *item.ResourceType == resourceType {
@@ -247,8 +250,8 @@ func filterItemsByResourceTypes(virtualHardware *ovf.VirtualHardwareSection, res
 	return filtered
 }
 
-func getDiskFileInfo(diskHostResource string, disks *[]ovf.VirtualDiskDesc,
-	references *[]ovf.File) (string, *ovf.VirtualDiskDesc, error) {
+func getDiskFileInfo(diskHostResource string, disks *[]ovfmodel.VirtualDisk,
+	references *[]ovfmodel.File) (string, *ovfmodel.VirtualDisk, error) {
 
 	diskID, err := extractDiskID(diskHostResource)
 	if err != nil {
@@ -275,7 +278,7 @@ func extractDiskID(diskHostResource string) (string, error) {
 	return strings.TrimPrefix(diskHostResource, "ovf:/disk/"), nil
 }
 
-func sortItemsByStringValue(items []ovf.ResourceAllocationSettingData, extractValue func(ovf.ResourceAllocationSettingData) string) {
+func sortItemsByStringValue(items []ovfmodel.ResourceAllocationSettingData, extractValue func(ovfmodel.ResourceAllocationSettingData) string) {
 	sort.SliceStable(items, func(i, j int) bool {
 		iVal := extractValue(items[i])
 		jVal := extractValue(items[j])

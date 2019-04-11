@@ -14,16 +14,18 @@
 
 package domain
 
-import "github.com/vmware/govmomi/ovf"
+import (
+	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/gce_ovf_import/ovf_model"
+)
 
 // OvfDescriptorValidatorInterface represents OVF descriptor validator
 type OvfDescriptorValidatorInterface interface {
-	ValidateOvfPackage(ovfDescriptor *ovf.Envelope, ovfGcsPath string) (*ovf.Envelope, error)
+	ValidateOvfPackage(ovfDescriptor *ovfmodel.Descriptor, ovfGcsPath string) (*ovfmodel.Descriptor, error)
 }
 
 // OvfDescriptorLoaderInterface represents a loader for OVF descriptors
 type OvfDescriptorLoaderInterface interface {
-	Load(ovfGcsPath string) (*ovf.Envelope, error)
+	Load(ovfGcsPath string) (*ovfmodel.Descriptor, error)
 }
 
 // MachineTypeProviderInterface is responsible for providing GCE machine type

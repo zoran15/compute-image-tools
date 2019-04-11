@@ -18,7 +18,7 @@ import (
 	"fmt"
 
 	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/common/domain"
-	"github.com/vmware/govmomi/ovf"
+	"github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/gce_ovf_import/ovf_model"
 )
 
 // OvfValidator is responsible for validating OVF packages
@@ -34,12 +34,12 @@ func NewOvfValidator(
 
 // ValidateOvfPackage validates OVF package. This includes checking that references to resources in GCS exist.
 func (v *OvfValidator) ValidateOvfPackage(
-	ovfDescriptor *ovf.Envelope, ovfGcsPath string) (*ovf.Envelope, error) {
+	ovfDescriptor *ovfmodel.Descriptor, ovfGcsPath string) (*ovfmodel.Descriptor, error) {
 	if ovfDescriptor == nil {
 		return nil, fmt.Errorf("OVF descriptor cannot be nil")
 	}
 
-	if err := v.validateReferencesExistInGcs(ovfDescriptor.References, ovfGcsPath); err != nil {
+	if err := v.validateReferencesExistInGcs(ovfDescriptor.References.Files, ovfGcsPath); err != nil {
 		return nil, err
 	}
 
@@ -47,7 +47,7 @@ func (v *OvfValidator) ValidateOvfPackage(
 }
 
 func (v *OvfValidator) validateReferencesExistInGcs(
-	references []ovf.File, ovfGcsPath string) error {
+	references []ovfmodel.File, ovfGcsPath string) error {
 	if references == nil {
 		return nil
 	}

@@ -19,8 +19,8 @@
 package mocks
 
 import (
+	ovf_model "github.com/GoogleCloudPlatform/compute-image-tools/cli_tools/gce_ovf_import/ovf_model"
 	gomock "github.com/golang/mock/gomock"
-	ovf "github.com/vmware/govmomi/ovf"
 	reflect "reflect"
 )
 
@@ -48,10 +48,10 @@ func (m *MockOvfDescriptorLoaderInterface) EXPECT() *MockOvfDescriptorLoaderInte
 }
 
 // Load mocks base method
-func (m *MockOvfDescriptorLoaderInterface) Load(arg0 string) (*ovf.Envelope, error) {
+func (m *MockOvfDescriptorLoaderInterface) Load(arg0 string) (*ovf_model.Descriptor, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Load", arg0)
-	ret0, _ := ret[0].(*ovf.Envelope)
+	ret0, _ := ret[0].(*ovf_model.Descriptor)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
